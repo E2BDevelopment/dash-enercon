@@ -133,21 +133,14 @@
 					<div>
 						<h2 class="font-semibold">Datos & Filtros</h2>
 						<p class="text-sm text-slate-500">
-							Consulta el API y filtra por fecha, producto, cliente, método de
-							pago y operación.
+							Se cargan automáticamente desde un archivo CSV y puedes filtrar por
+							fecha, producto, cliente, método de pago y operación.
 						</p>
 					</div>
 
 					<div class="flex flex-wrap items-center gap-2">
-						<button
-							id="btnLoadApi"
-							class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-							type="button"
-						>
-							Actualizar datos
-						</button>
 						<span id="apiMeta" class="text-xs text-slate-500"
-							>(sin consulta)</span
+							>(sin datos cargados)</span
 						>
 					</div>
 				</div>
@@ -463,8 +456,7 @@
 			const FONT_SCALE_MIN = 0.85;
 			const FONT_SCALE_MAX = 1.25;
 			const FONT_SCALE_STEP = 0.05;
-			const API_ENDPOINT =
-				"https://script.google.com/macros/s/AKfycbw-Kjl-R8Pb46f13IIeuyKPBiWT3RstG0pbp-PQkpve1jf-32GIFSSg1t05UdDnK_Psbw/exec"; // Endpoint GET
+			const CSV_FILE_PATH = "data/ventas.csv"; // Cambia esta ruta por el archivo CSV que quieras cargar
 
 			function showStatus(text) {
 				$("statusBar").classList.remove("hidden");
@@ -643,8 +635,55 @@
 				}
 			}
 
+			function parseCsvLine(line) {
+				const values = [];
+				let current = "";
+				let inQuotes = false;
+
+				for (let i = 0; i < line.length; i++) {
+					const char = line[i];
+					const nextChar = line[i + 1];
+					if (char === '"') {
+						if (inQuotes && nextChar === '"') {
+							current += '"';
+							i++;
+						} else {
+							inQuotes = !inQuotes;
+						}
+					} else if (char === "," && !inQuotes) {
+						values.push(current);
+						current = "";
+					} else {
+						current += char;
+					}
+				}
+				values.push(current);
+				return values;
+			}
+
+			function parseCSV(text) {
+				const lines = toStr(text)
+					.split(/\r?\n/)
+					.filter((line) => line.trim() !== "");
+				if (!lines.length) return [];
+
+				const headers = parseCsvLine(lines[0]).map((h) => toStr(h));
+				const records = [];
+
+				for (let i = 1; i < lines.length; i++) {
+					const values = parseCsvLine(lines[i]);
+					const row = {};
+					for (let j = 0; j < headers.length; j++) {
+						row[headers[j]] = values[j] ?? "";
+					}
+					records.push(row);
+				}
+
+				return records;
+			}
+
 			// -----------------------------
-			// Normalización (API)
+			// Normalización (CSV/API)
 			// -----------------------------
 			function normalizeRow(row) {
 				// Soportar headers que vengan con espacios o may/min
@@ -1276,59 +1315,33 @@
 				renderCharts(FILTERED);
 			}
 
-			// Carga API
+			// Carga CSV automática
 			// -----------------------------
-			async function fetchApiData() {
-				showStatus("Consultando API…");
+			async function loadCsvData() {
+				showStatus("Leyendo archivo CSV…");
 				try {
-					const response = await fetch(API_ENDPOINT, {
-						method: "POST",
-						headers: { Accept: "application/json" },
-					});
+					const response = await fetch(CSV_FILE_PATH, { cache: "no-store" });
 					if (!response.ok) {
 						throw new Error(`HTTP ${response.status} ${response.statusText}`);
 					}
 
-					// var settings = {
-					// 	url: API_ENDPOINT,
-					// 	type: "POST",
-					// 	data: JSON.stringify({}),
-					// 	success: function () {
-					// 		// resolve()
-					// 	},
-					// 	error: function () {
-					// 		btn48.removeAttribute("disabled");
-					// 		Swal.fire("Error de conexión", "", "info");
-					// 		reject();
-					// 	},
-					// };
-					// $.ajax(settings).done(function (response) {});
-
 					showStatus("Normalizando filas…");
-					const payload = await response.json();
-					console.log("Respuesta API:", payload);
-					const data = Array.isArray(payload?.apiData.data)
-						? payload.apiData.data
-						: Array.isArray(payload)
-							? payload
-							: [];
+					const csvText = await response.text();
+					const data = parseCSV(csvText);
 
 					RAW = data
 						.map(normalizeRow)
 						.filter((r) => r.fechaStr || r.transaccion || r.producto);
 
 					updateFilterOptions();
-					const apiCount = Number(payload?.count);
-					$("apiMeta").textContent = Number.isFinite(apiCount)
-						? `count API: ${formatNum(apiCount)} · rows leídas: ${formatNum(RAW.length)}`
-						: `rows leídas: ${formatNum(RAW.length)}`;
+					$("apiMeta").textContent = `archivo: ${CSV_FILE_PATH} · rows leídas: ${formatNum(RAW.length)}`;
 
 					hideStatus();
 					refresh();
 				} catch (err) {
 					hideStatus();
 
-					alert("Error al consultar el API (GET): " + (err?.message || err));
+					alert("Error al cargar el CSV: " + (err?.message || err));
 				}
 			}
 
@@ -1370,10 +1383,6 @@
 			// Eventos
 			// -----------------------------
 			function wireEvents() {
-				$("btnLoadApi").addEventListener("click", () => {
-					fetchApiData();
-				});
-
 				const clientInput = $("fCliente");
 				clientInput.addEventListener("input", (event) => {
 					renderClientSuggestions(event.target.value);
@@ -1436,6 +1445,7 @@
 			}
 			applyFontScale(fontScale, false);
 			wireEvents();
+			loadCsvData();
 			// renderTableHead();
 		</script>
 	</body>
