@@ -133,16 +133,16 @@
 					<div>
 						<h2 class="font-semibold">Datos & Filtros</h2>
 						<p class="text-sm text-slate-500">
-							Se cargan automáticamente desde un archivo CSV y puedes filtrar por
-							fecha, producto, cliente, método de pago y operación.
+							Se cargan automáticamente desde un archivo CSV y puedes filtrar
+							por fecha, producto, cliente, método de pago y operación.
 						</p>
 					</div>
 
-					<div class="flex flex-wrap items-center gap-2">
+					<!-- <div class="flex flex-wrap items-center gap-2">
 						<span id="apiMeta" class="text-xs text-slate-500"
 							>(sin datos cargados)</span
 						>
-					</div>
+					</div> -->
 				</div>
 
 				<div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
@@ -456,7 +456,7 @@
 			const FONT_SCALE_MIN = 0.85;
 			const FONT_SCALE_MAX = 1.25;
 			const FONT_SCALE_STEP = 0.05;
-			const CSV_FILE_PATH = "data/ventas.csv"; // Cambia esta ruta por el archivo CSV que quieras cargar
+			const CSV_FILE_PATH = "enercon2025toDay.csv"; // Cambia esta ruta por el archivo CSV que quieras cargar
 
 			function showStatus(text) {
 				$("statusBar").classList.remove("hidden");
@@ -547,7 +547,10 @@
 						if (arc.circumference < 0.35) return;
 
 						const pos = arc.tooltipPosition();
-						const ringThickness = Math.max(arc.outerRadius - arc.innerRadius, 1);
+						const ringThickness = Math.max(
+							arc.outerRadius - arc.innerRadius,
+							1,
+						);
 						const fontSize = Math.max(10, Math.min(14, ringThickness * 0.33));
 						ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
 
@@ -1334,7 +1337,8 @@
 						.filter((r) => r.fechaStr || r.transaccion || r.producto);
 
 					updateFilterOptions();
-					$("apiMeta").textContent = `archivo: ${CSV_FILE_PATH} · rows leídas: ${formatNum(RAW.length)}`;
+					// $("apiMeta").textContent =
+					// 	`archivo: ${CSV_FILE_PATH} · rows leídas: ${formatNum(RAW.length)}`;
 
 					hideStatus();
 					refresh();
